@@ -27,7 +27,7 @@ The connections are:
 * VCC - 3.3V
 * SDA - 4
 * SCL - 15
-* WAKE - GND
+* WAKE - 3
 
 ## Software Requirements
 

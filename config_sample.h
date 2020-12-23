@@ -7,8 +7,12 @@
 const char* status_topic                = "events";        // MQTT topic to report startup
 
 /* SEN-CCS811 Sensor */
-uint32_t    g_CCS811_coldstart_period   = 180;             // Seconds to warm up PMS before reading
-uint32_t    g_CCS811_report_period      = 120;             // Seconds between reports
+uint32_t    g_CCS811_coldstart_period   = 180;          // Seconds to warm up PMS before reading
+uint32_t    g_CCS811_warmup_period      = 30;           // Seconds to warm up PMS before reading
+uint32_t    g_CCS811_report_period      = 180;          // Seconds between reports
+uint32_t    g_CCS811_i2cSDA_pin         = 4;            // Not used ...yet
+uint32_t    g_CCS811_i2cSCL_pin         = 15;           // Not used ...yet
+uint32_t    g_CCS811_wake_pin           = 2;            // Port to which WAKE pin is connected
 
 /* Serial */
 #define     SERIAL_BAUD_RATE            115200               // Speed for USB serial console

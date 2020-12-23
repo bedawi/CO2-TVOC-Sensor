@@ -8,7 +8,6 @@
  * of the MIT license.  See the LICENSE file for details.
  */
 
-
 /*
  * Libraries needed:
  * Adafruit BusIO
@@ -104,6 +103,10 @@ void connectWifi(const char *ssid, const char *password);
 // -- Setup
 void setup()
 {
+  // Defining mode of PINs (Sensor CCS811 has a WAKE-PIN to control sleep)
+  pinMode(g_CCS811_wake_pin, OUTPUT);
+  digitalWrite(g_CCS811_wake_pin, LOW);
+
   delay(1000);
   // setting up display
   Heltec.display->init();
@@ -145,7 +148,6 @@ void setup()
   else
   {
     Serial.println("Found valid IoTWebConf/MQTT config in EEPROM");
-
   }
 
   // -- Set up required URL handlers on the web server.
@@ -178,7 +180,7 @@ void setup()
       ;
   }
   //double temp = ccs.calculateTemperature();
-  ccs.setTempOffset(0); 
+  ccs.setTempOffset(0);
   Heltec.display->drawString(0, 20, "CCS811 warmup...");
   Heltec.display->display();
 }
@@ -342,6 +344,8 @@ void loop()
   if (ccstimer.isTimetoWakeup())
   {
     ccstimer.wakeUp();
+    // Waking Sensor up...
+    digitalWrite(g_CCS811_wake_pin, LOW);
   }
 
   if (ccstimer.isReady())
@@ -352,6 +356,8 @@ void loop()
     if (reportReadings())
     {
       ccstimer.startover();
+      // Sensing Sensor to sleep...
+      digitalWrite(g_CCS811_wake_pin, HIGH);
     }
   }
   display();
@@ -428,7 +434,7 @@ bool connectMqtt()
   }
   Serial.println("Connected!");
 
-//  mqttClient.subscribe("/test/action");
+  //  mqttClient.subscribe("/test/action");
   return true;
 }
 
