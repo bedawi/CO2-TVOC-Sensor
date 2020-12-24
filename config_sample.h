@@ -14,6 +14,9 @@ uint32_t    g_CCS811_i2cSDA_pin         = 4;            // Not used ...yet
 uint32_t    g_CCS811_i2cSCL_pin         = 15;           // Not used ...yet
 uint32_t    g_CCS811_wake_pin           = 2;            // Port to which WAKE pin is connected
 
+/* BME/BMP280 sensor */
+uint8_t     g_bme_i2c_address           = 0x76;          // Address of sensor on I2C bus
+
 /* Serial */
 #define     SERIAL_BAUD_RATE            115200               // Speed for USB serial console
 

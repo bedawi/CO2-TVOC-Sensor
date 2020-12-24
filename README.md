@@ -20,14 +20,28 @@ The code has been written for and tested on a [Heltec WiFi LoRa 32 (V2)](https:/
 ### CCS811 Sensor
 To measure carbon dioxide and volatile organic compound levels a [CCS811](https://www.sciosense.com/products/environmental-sensors/ccs811-gas-sensor-solution/) Sensor is being connected through I2C. 
 
-The connections are:
-(Sensor -> ESP32)
+### BME/BMP280 Sensor
+To set the environment variables of the CCS811 we need a data source for temperature and humidity. The BME/BMP280 sensor provides this data. 
 
-* GND - GND
-* VCC - 3.3V
-* SDA - 4
-* SCL - 15
-* WAKE - 3
+```
+g_bme_humidity = bme.readHumidity();
+g_bme_temperature = bme.readTemperature();
+ccs.setEnvironmentalData(g_bme_humidity, g_bme_temperature);
+```
+
+### Connections
+The connections are:
+
+```
+ESP32   -   CCS811  -   BME/BMP280
+==================================
+GND     -   GND     -   GND
+3.3V    -   VCC     -   VIN
+4       -   SDA     -   SDA
+15      -   SCL     -   SCL
+3       -   WAKE
+```
+
 
 ## Software Requirements
 

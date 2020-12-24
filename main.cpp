@@ -17,6 +17,7 @@
  * Adafruit CCS811 Library by Adafruit
  * IotWebConf by Balazs Kelemen // Warning: The version 2.2.3 on PlatformIO is outdated/missing files. Download from original repo!
  * MQTT by Joel Gaehwiler
+ * Adafruit BME280 Library by Adafriut
 */
 
 #include <Arduino.h>
@@ -28,7 +29,6 @@
 #include "config.h"
 
 // Configuration for IotWebConf
-
 #define STRING_LEN 128
 #define NUMBER_LEN 32
 
@@ -74,11 +74,16 @@ Adafruit_CCS811 ccs;
 SensorTimer ccstimer;
 uint16_t CO2, TVOC;
 
-ScreenPage screen1_co2("CO2", "ppm", "parts per million");
-ScreenPage screen2_tvoc("TVOC", "ppb", "parts per billion");
+// Includes and instanciations for BME/BMP280 Sensor
+#include <Adafruit_Sensor.h>
+#include <Adafruit_BME280.h>
+Adafruit_BME280 bme;
+float g_bme_temperature;
+float g_bme_humidity;
+float g_bme_pressure;
+bool bmepresent = false;
 
 // other global variables
-int screenPages = 2;
 int lastScreenUpdate = millis();
 int currentScreenPage = 1;
 int changeScreenSeconds = 4;
@@ -87,6 +92,14 @@ boolean needReset = false;
 int pinState = HIGH;
 unsigned long lastReport = 0;
 unsigned long lastMqttConnectionAttempt = 0;
+
+// Screen Pages
+ScreenPage screen1_co2("CO2", "ppm", "parts per million");
+ScreenPage screen2_tvoc("TVOC", "ppb", "parts per billion");
+ScreenPage screen3_temperature("Temperature", "°C", "");
+ScreenPage screen4_humidity("Humidity", "%", "");
+ScreenPage screen5_pressure("Pressure", "hpa", "");
+int g_screen_pages = 5;
 
 // -- Method declarations.
 void setup();
@@ -108,13 +121,10 @@ void setup()
   digitalWrite(g_CCS811_wake_pin, LOW);
 
   delay(1000);
+
   // setting up display
   Heltec.display->init();
   Heltec.display->flipScreenVertically();
-  Heltec.display->setFont(ArialMT_Plain_16);
-  Heltec.display->clear();
-  Heltec.display->drawString(0, 0, "Hello :-)");
-  Heltec.display->display();
 
   // setting up WiFi (IoT Web)
   Serial.begin(115200);
@@ -132,9 +142,6 @@ void setup()
   iotWebConf.setConfigSavedCallback(&configSaved);
   iotWebConf.setFormValidator(&formValidator);
   iotWebConf.setWifiConnectionCallback(&wifiConnected);
-  //iotWebConf.skipApStartup();
-  //iotWebConf.setApTimeoutMs(10000);
-  //iotWebConf.getApTimeoutParameter()->visible = true;
 
   // -- Initializing the configuration.
   bool validConfig = iotWebConf.init();
@@ -158,18 +165,12 @@ void setup()
   mqttClient.begin(mqttServerValue, net);
   mqttClient.onMessage(mqttMessageReceived);
 
-  Serial.println("Ready.");
-  Heltec.display->clear();
-  Heltec.display->drawString(0, 00, "WiFi ready");
-  Heltec.display->display();
-
   // -- CCS811 Sensor
   // These timing options are set up in config.h
   ccstimer.setRepeatTime(g_CCS811_report_period);
   ccstimer.setWarmupTime(0);
   ccstimer.setColdstartTime(g_CCS811_coldstart_period);
 
-  // Starting Sensor
   if (!ccs.begin())
   {
     Serial.println("Failed to start sensor! Please check your wiring.");
@@ -179,10 +180,23 @@ void setup()
     while (1)
       ;
   }
-  //double temp = ccs.calculateTemperature();
-  ccs.setTempOffset(0);
+  else
+  {
+    Serial.println("CCS811 sensor is online.");
+  }
   Heltec.display->drawString(0, 20, "CCS811 warmup...");
   Heltec.display->display();
+
+  // Starting BME/BMP280 sensor
+  if (!bme.begin(g_bme_i2c_address, &Wire))
+  {
+    Serial.println("Could not start BME/BMP280 sensor.");
+  }
+  else
+  {
+    Serial.println("BME/BMP280 sensor is online.");
+    bmepresent = true;
+  }
 }
 
 bool takeReadings()
@@ -191,6 +205,16 @@ bool takeReadings()
   {
     if (!ccs.readData())
     {
+      if (bmepresent)
+      {
+        g_bme_humidity = bme.readHumidity();
+        g_bme_temperature = bme.readTemperature();
+        g_bme_pressure = bme.readPressure();
+        screen3_temperature.setValue(g_bme_temperature);
+        screen4_humidity.setValue(g_bme_humidity);
+        screen5_pressure.setValue(g_bme_pressure);
+        ccs.setEnvironmentalData(g_bme_humidity, g_bme_temperature);
+      }
       CO2 = ccs.geteCO2();
       screen1_co2.setValue(CO2);
       TVOC = ccs.getTVOC();
@@ -212,7 +236,7 @@ void display()
 {
   if ((lastScreenUpdate + (changeScreenSeconds * 1000)) < millis())
   {
-    if ((currentScreenPage + 1) > screenPages)
+    if ((currentScreenPage + 1) > g_screen_pages)
     {
       currentScreenPage = 1;
     }
@@ -250,6 +274,24 @@ void display()
         Heltec.display->setFont(ArialMT_Plain_10);
         Heltec.display->drawString(0, 50, tvocBbpToIAQ(TVOC));
         break;
+      case 3:
+        Heltec.display->setFont(ArialMT_Plain_16);
+        Heltec.display->drawString(0, 0, screen3_temperature.getLine1());
+        Heltec.display->setFont(ArialMT_Plain_24);
+        Heltec.display->drawString(10, 20, screen3_temperature.getLine2());
+        break;
+      case 4:
+        Heltec.display->setFont(ArialMT_Plain_16);
+        Heltec.display->drawString(0, 0, screen4_humidity.getLine1());
+        Heltec.display->setFont(ArialMT_Plain_24);
+        Heltec.display->drawString(10, 20, screen4_humidity.getLine2());
+        break;
+      case 5:
+        Heltec.display->setFont(ArialMT_Plain_16);
+        Heltec.display->drawString(0, 0, screen5_pressure.getLine1());
+        Heltec.display->setFont(ArialMT_Plain_24);
+        Heltec.display->drawString(10, 20, screen5_pressure.getLine2());
+        break;
       }
     }
 
@@ -274,6 +316,21 @@ bool reportReadings()
   if (mqttClient.publish("/tele/CCS811/TVOC", String(TVOC)))
   {
     Serial.println("TVOC value published.");
+  }
+  if (bmepresent)
+  {
+    if (mqttClient.publish("/tele/CCS811/humidity", String(g_bme_humidity)))
+    {
+      Serial.println("Humidity value published.");
+    }
+    if (mqttClient.publish("/tele/CCS811/temperature", String(g_bme_temperature)))
+    {
+      Serial.println("Temperature value published.");
+    }
+    if (mqttClient.publish("/tele/CCS811/pressure", String(g_bme_pressure)))
+    {
+      Serial.println("Pressure value published.");
+    }
   }
   return true;
 }
@@ -433,8 +490,6 @@ bool connectMqtt()
     return false;
   }
   Serial.println("Connected!");
-
-  //  mqttClient.subscribe("/test/action");
   return true;
 }
 
