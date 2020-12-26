@@ -22,6 +22,7 @@
 
 #include <Arduino.h>
 #include "SensorTimer.h"
+#include "ScreenHandler.h"
 #include "ScreenPage.h"
 #include <IotWebConf.h>
 #include <IotWebConfUsing.h> // This loads aliases for easier class names.
@@ -85,7 +86,7 @@ bool bmepresent = false;
 
 // other global variables
 int lastScreenUpdate = millis();
-int currentScreenPage = 1;
+//int currentScreenPage = 1;
 int changeScreenSeconds = 4;
 boolean needMqttConnect = false;
 boolean needReset = false;
@@ -93,13 +94,15 @@ int pinState = HIGH;
 unsigned long lastReport = 0;
 unsigned long lastMqttConnectionAttempt = 0;
 
+// ScreenHandler
+static ScreenHandler myScreenHandler;
 // Screen Pages
 ScreenPage screen1_co2("CO2", "ppm", "parts per million");
 ScreenPage screen2_tvoc("TVOC", "ppb", "parts per billion");
 ScreenPage screen3_temperature("Temperature", "°C", "");
 ScreenPage screen4_humidity("Humidity", "%", "");
 ScreenPage screen5_pressure("Pressure", "hpa", "");
-int g_screen_pages = 5;
+//int g_screen_pages = 5;
 
 // -- Method declarations.
 void setup();
@@ -116,6 +119,13 @@ void connectWifi(const char *ssid, const char *password);
 // -- Setup
 void setup()
 {
+  // Attaching screens to handler class
+  myScreenHandler.attachScreen(&screen1_co2);
+  myScreenHandler.attachScreen(&screen2_tvoc);
+  myScreenHandler.attachScreen(&screen3_temperature);
+  myScreenHandler.attachScreen(&screen4_humidity);
+  myScreenHandler.attachScreen(&screen5_pressure);
+
   // Defining mode of PINs (Sensor CCS811 has a WAKE-PIN to control sleep)
   pinMode(g_CCS811_wake_pin, OUTPUT);
   digitalWrite(g_CCS811_wake_pin, LOW);
@@ -186,6 +196,8 @@ void setup()
   }
   Heltec.display->drawString(0, 20, "CCS811 warmup...");
   Heltec.display->display();
+  screen1_co2.setPriority(0);
+  screen2_tvoc.setPriority(0);
 
   // Starting BME/BMP280 sensor
   if (!bme.begin(g_bme_i2c_address, &Wire))
@@ -196,6 +208,12 @@ void setup()
   {
     Serial.println("BME/BMP280 sensor is online.");
     bmepresent = true;
+    g_bme_humidity = bme.readHumidity();
+    g_bme_temperature = bme.readTemperature();
+    g_bme_pressure = bme.readPressure();
+    screen3_temperature.setValue(g_bme_temperature);
+    screen4_humidity.setValue(g_bme_humidity);
+    screen5_pressure.setValue(g_bme_pressure);
   }
 }
 
@@ -219,6 +237,9 @@ bool takeReadings()
       screen1_co2.setValue(CO2);
       TVOC = ccs.getTVOC();
       screen2_tvoc.setValue(TVOC);
+      screen2_tvoc.setComment(tvocBbpToIAQ(TVOC));
+      screen1_co2.setPriority(1);
+      screen2_tvoc.setPriority(1);
       ccstimer.readingsTaken();
       return true;
     }
@@ -229,6 +250,8 @@ bool takeReadings()
     }
   }
   // Sensor unavailable
+  screen1_co2.setPriority(0);
+  screen2_tvoc.setPriority(0);
   return false;
 }
 
@@ -236,65 +259,14 @@ void display()
 {
   if ((lastScreenUpdate + (changeScreenSeconds * 1000)) < millis())
   {
-    if ((currentScreenPage + 1) > g_screen_pages)
-    {
-      currentScreenPage = 1;
-    }
-    else
-    {
-      currentScreenPage++;
-    }
+    ScreenPage *currentScreenPage = myScreenHandler.returnNextScreen();
     Heltec.display->clear();
-    if (ccstimer.isWarmingUpFromColdstart())
-    {
-      Heltec.display->setFont(ArialMT_Plain_10);
-      Heltec.display->drawString(0, 0, "Warming up sensor...");
-      Heltec.display->setFont(ArialMT_Plain_24);
-      Heltec.display->drawString(0, 20, "Please wait.");
-      Heltec.display->setFont(ArialMT_Plain_10);
-      Heltec.display->drawString(0, 50, "Ready in: " + String(ccstimer.getReadyInSeconds()));
-    }
-    else
-    {
-      switch (currentScreenPage)
-      {
-      case 1:
-        Heltec.display->setFont(ArialMT_Plain_16);
-        Heltec.display->drawString(0, 0, screen1_co2.getLine1());
-        Heltec.display->setFont(ArialMT_Plain_24);
-        Heltec.display->drawString(10, 20, screen1_co2.getLine2());
-        Heltec.display->setFont(ArialMT_Plain_10);
-        Heltec.display->drawString(0, 50, screen1_co2.getLine3());
-        break;
-      case 2:
-        Heltec.display->setFont(ArialMT_Plain_16);
-        Heltec.display->drawString(0, 0, screen2_tvoc.getLine1());
-        Heltec.display->setFont(ArialMT_Plain_24);
-        Heltec.display->drawString(10, 20, screen2_tvoc.getLine2());
-        Heltec.display->setFont(ArialMT_Plain_10);
-        Heltec.display->drawString(0, 50, tvocBbpToIAQ(TVOC));
-        break;
-      case 3:
-        Heltec.display->setFont(ArialMT_Plain_16);
-        Heltec.display->drawString(0, 0, screen3_temperature.getLine1());
-        Heltec.display->setFont(ArialMT_Plain_24);
-        Heltec.display->drawString(10, 20, screen3_temperature.getLine2());
-        break;
-      case 4:
-        Heltec.display->setFont(ArialMT_Plain_16);
-        Heltec.display->drawString(0, 0, screen4_humidity.getLine1());
-        Heltec.display->setFont(ArialMT_Plain_24);
-        Heltec.display->drawString(10, 20, screen4_humidity.getLine2());
-        break;
-      case 5:
-        Heltec.display->setFont(ArialMT_Plain_16);
-        Heltec.display->drawString(0, 0, screen5_pressure.getLine1());
-        Heltec.display->setFont(ArialMT_Plain_24);
-        Heltec.display->drawString(10, 20, screen5_pressure.getLine2());
-        break;
-      }
-    }
-
+    Heltec.display->setFont(ArialMT_Plain_16);
+    Heltec.display->drawString(0, 0, currentScreenPage->getLine1());
+    Heltec.display->setFont(ArialMT_Plain_24);
+    Heltec.display->drawString(10, 20, currentScreenPage->getLine2());
+    Heltec.display->setFont(ArialMT_Plain_10);
+    Heltec.display->drawString(0, 50, currentScreenPage->getLine3());
     Heltec.display->display();
     lastScreenUpdate = millis();
   }
