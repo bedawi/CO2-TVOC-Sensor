@@ -3,8 +3,6 @@
 #include <cstdint>      // Only needed when using PlatformIO on VSCode
 
 /* ----------------- General config -------------------------------- */
-/* MQTT */
-const char* status_topic                = "events";        // MQTT topic to report startup
 
 /* SEN-CCS811 Sensor */
 uint32_t    g_CCS811_coldstart_period   = 180;          // Seconds to warm up PMS before reading

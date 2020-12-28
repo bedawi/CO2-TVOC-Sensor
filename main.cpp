@@ -30,7 +30,7 @@
 #include "config.h"
 
 // Configuration for IotWebConf
-#define STRING_LEN 128
+const int STRING_LEN = 128;
 #define NUMBER_LEN 32
 
 // -- Configuration specific key. The value should be modified if config structure was changed.
@@ -58,6 +58,7 @@ MQTTClient mqttClient;
 char mqttServerValue[STRING_LEN];
 char mqttUserNameValue[STRING_LEN];
 char mqttUserPasswordValue[STRING_LEN];
+char mqttTopicValue[STRING_LEN];
 
 IotWebConf iotWebConf(thingName, &dnsServer, &server, wifiInitialApPassword, CONFIG_VERSION);
 // -- You can also use namespace formats e.g.: iotwebconf::ParameterGroup
@@ -65,6 +66,7 @@ IotWebConfParameterGroup mqttGroup = IotWebConfParameterGroup("MQTT configuratio
 IotWebConfTextParameter mqttServerParam = IotWebConfTextParameter("MQTT server", "mqttServer", mqttServerValue, STRING_LEN);
 IotWebConfTextParameter mqttUserNameParam = IotWebConfTextParameter("MQTT user", "mqttUser", mqttUserNameValue, STRING_LEN);
 IotWebConfPasswordParameter mqttUserPasswordParam = IotWebConfPasswordParameter("MQTT password", "mqttPass", mqttUserPasswordValue, STRING_LEN);
+IotWebConfTextParameter mqttTopicParam = IotWebConfTextParameter("MQTT topic", "mqttTopic", mqttTopicValue, STRING_LEN);
 
 // Includes for SSD1306 Display
 #include <heltec.h>
@@ -102,7 +104,6 @@ ScreenPage screen2_tvoc("TVOC", "ppb", "parts per billion");
 ScreenPage screen3_temperature("Temperature", "°C", "");
 ScreenPage screen4_humidity("Humidity", "%", "");
 ScreenPage screen5_pressure("Pressure", "hpa", "");
-//int g_screen_pages = 5;
 
 // -- Method declarations.
 void setup();
@@ -119,6 +120,8 @@ void connectWifi(const char *ssid, const char *password);
 // -- Setup
 void setup()
 {
+  delay(1000);
+
   // Attaching screens to handler class
   myScreenHandler.attachScreen(&screen1_co2);
   myScreenHandler.attachScreen(&screen2_tvoc);
@@ -129,8 +132,6 @@ void setup()
   // Defining mode of PINs (Sensor CCS811 has a WAKE-PIN to control sleep)
   pinMode(g_CCS811_wake_pin, OUTPUT);
   digitalWrite(g_CCS811_wake_pin, LOW);
-
-  delay(1000);
 
   // setting up display
   Heltec.display->init();
@@ -144,6 +145,7 @@ void setup()
   mqttGroup.addItem(&mqttServerParam);
   mqttGroup.addItem(&mqttUserNameParam);
   mqttGroup.addItem(&mqttUserPasswordParam);
+  mqttGroup.addItem(&mqttTopicParam);
 
   iotWebConf.setStatusPin(STATUS_PIN);
   pinMode(CONFIG_PIN, INPUT_PULLUP);
@@ -158,9 +160,10 @@ void setup()
   if (!validConfig)
   {
     Serial.println("Found no valid IoTWebConf/MQTT config in EEPROM");
-    mqttServerValue[0] = '\0';
-    mqttUserNameValue[0] = '\0';
-    mqttUserPasswordValue[0] = '\0';
+    mqttServerValue[0] = '\x00';
+    mqttUserNameValue[0] = '\x00';
+    mqttUserPasswordValue[0] = '\x00';
+    strcpy(mqttTopicValue, "/tele/sensorname/");
   }
   else
   {
@@ -281,25 +284,36 @@ bool reportReadings()
   Serial.println(TVOC);
 
   // reporting to MQTT
-  if (mqttClient.publish("/tele/CCS811/CO2", String(CO2)))
+  String topic = mqttTopicValue;
+  topic.concat("CO2");
+  if (mqttClient.publish(topic.c_str(), String(CO2)))
   {
-    Serial.println("CO2 value published.");
+    Serial.println("CO2 value published");
   }
-  if (mqttClient.publish("/tele/CCS811/TVOC", String(TVOC)))
+
+  topic = mqttTopicValue;
+  topic.concat("TVOC");
+  if (mqttClient.publish(topic.c_str(), String(TVOC)))
   {
     Serial.println("TVOC value published.");
   }
   if (bmepresent)
   {
-    if (mqttClient.publish("/tele/CCS811/humidity", String(g_bme_humidity)))
+    topic = mqttTopicValue;
+    topic.concat("humidity");
+    if (mqttClient.publish(topic.c_str(), String(g_bme_humidity)))
     {
       Serial.println("Humidity value published.");
     }
-    if (mqttClient.publish("/tele/CCS811/temperature", String(g_bme_temperature)))
+    topic = mqttTopicValue;
+    topic.concat("temperature");
+    if (mqttClient.publish(topic.c_str(), String(g_bme_temperature)))
     {
       Serial.println("Temperature value published.");
     }
-    if (mqttClient.publish("/tele/CCS811/pressure", String(g_bme_pressure)))
+    topic = mqttTopicValue;
+    topic.concat("pressure");
+    if (mqttClient.publish(topic.c_str(), String(g_bme_pressure)))
     {
       Serial.println("Pressure value published.");
     }
