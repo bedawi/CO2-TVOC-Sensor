@@ -2,13 +2,23 @@
 
 ScreenPage::ScreenPage(String prefix, String suffix, String comment)
 {
-  m_prefix = prefix;
+  m_headline = prefix;
   m_suffix = suffix;
   m_comment = comment;
   m_value = 0;
   m_readingAvailable = false;
   _nextScreen = NULL;
-  m_priority = 1; // 0: Never shown 1: Shown during normal operation 2: important, overriding 1
+  m_priority = 1;   // 0: Never shown 1: Shown during normal operation 2: important, overriding 1
+  m_screenType = 0; // This is a ValueScreen - a Screen showing a value.
+}
+
+ScreenPage::ScreenPage(String headline, String infoMessage)
+{
+  m_headline = headline;
+  m_infoMessage = infoMessage;
+  m_screenType = 1; // This is an infoScreen - it does not show a value but a message like "WiFi Down"
+  m_priority = 1;
+  m_comment = "";
 }
 
 void ScreenPage::setValue(uint16_t value)
@@ -33,21 +43,35 @@ uint8_t ScreenPage::getPriority()
 
 String ScreenPage::getLine1()
 {
-  String returnString = "";
-  returnString = returnString + m_prefix + ":";
-  return returnString;
+  if (m_screenType == 0)
+  {
+    String returnString = "";
+    returnString = returnString + m_headline + ":";
+    return returnString;
+  }
+  else
+  {
+    return m_headline;
+  }
 }
 
 String ScreenPage::getLine2()
 {
-  String returnString = "";
-  returnString = returnString + m_value;
-
-  if (m_suffix != "")
+  if (m_screenType == 0)
   {
-    returnString = returnString + " " + m_suffix;
+    String returnString = "";
+    returnString = returnString + m_value;
+
+    if (m_suffix != "")
+    {
+      returnString = returnString + " " + m_suffix;
+    }
+    return returnString;
   }
-  return returnString;
+  else
+  {
+    return m_infoMessage;
+  }
 }
 
 String ScreenPage::getLine3()

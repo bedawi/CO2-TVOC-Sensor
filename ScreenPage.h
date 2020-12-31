@@ -14,19 +14,22 @@
 class ScreenPage
 {
 private:
-    String m_prefix;
+    String m_headline;
     String m_suffix;
     String m_comment;
     uint16_t m_value;
     bool m_readingAvailable;
     uint8_t m_priority;
-
+    uint8_t m_screenType; // 0 = ValueScreen; 1 = Infoscreen;
+    String m_infoMessage;
+    
 public:
     ScreenPage *_nextScreen = NULL;
     /*
 
     */
     ScreenPage(String prefix, String suffix, String unit);
+    ScreenPage(String headline, String infomessage);
     void setValue(uint16_t value);
     void setComment(String comment);
     void setPriority(uint8_t priority);
