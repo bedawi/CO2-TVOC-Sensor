@@ -104,6 +104,9 @@ ScreenPage screen2_tvoc("TVOC", "ppb", "parts per billion");
 ScreenPage screen3_temperature("Temperature", "°C", "");
 ScreenPage screen4_humidity("Humidity", "%", "");
 ScreenPage screen5_pressure("Pressure", "hpa", "");
+ScreenPage screen6_wifiAPSSID("AP-Mode, SSID:", thingName);
+ScreenPage screen7_wifiAPPassword("AP-Mode, PWD:", wifiInitialApPassword);
+
 
 // -- Method declarations.
 void setup();
@@ -115,11 +118,11 @@ void handleRoot();
 void mqttMessageReceived(String &topic, String &payload);
 bool connectMqtt();
 bool connectMqttOptions();
-void connectWifi(const char *ssid, const char *password);
 
 // -- Setup
 void setup()
 {
+  // A second of delay helps debugging. In VS Code the serial monitor needs a second to start after upload of firmware.
   delay(1000);
 
   // Attaching screens to handler class
@@ -128,6 +131,8 @@ void setup()
   myScreenHandler.attachScreen(&screen3_temperature);
   myScreenHandler.attachScreen(&screen4_humidity);
   myScreenHandler.attachScreen(&screen5_pressure);
+  myScreenHandler.attachScreen(&screen6_wifiAPSSID);
+  myScreenHandler.attachScreen(&screen7_wifiAPPassword);
 
   // Defining mode of PINs (Sensor CCS811 has a WAKE-PIN to control sleep)
   pinMode(g_CCS811_wake_pin, OUTPUT);
@@ -141,6 +146,10 @@ void setup()
   Serial.begin(115200);
   Serial.println();
   Serial.println("Starting up...");
+  
+  // Setting priority of WiFi info screens to high, will be set to 0 when connection is established.
+  screen6_wifiAPSSID.setPriority(2);
+  screen7_wifiAPPassword.setPriority(2);
 
   mqttGroup.addItem(&mqttServerParam);
   mqttGroup.addItem(&mqttUserNameParam);
@@ -154,7 +163,7 @@ void setup()
   iotWebConf.setConfigSavedCallback(&configSaved);
   iotWebConf.setFormValidator(&formValidator);
   iotWebConf.setWifiConnectionCallback(&wifiConnected);
-
+  
   // -- Initializing the configuration.
   bool validConfig = iotWebConf.init();
   if (!validConfig)
@@ -438,6 +447,8 @@ void handleRoot()
 void wifiConnected()
 {
   needMqttConnect = true;
+  screen6_wifiAPSSID.setPriority(0);
+  screen7_wifiAPPassword.setPriority(0);
 }
 
 void configSaved()
@@ -501,10 +512,3 @@ void mqttMessageReceived(String &topic, String &payload)
 {
   Serial.println("Incoming: " + topic + " - " + payload);
 }
-
-/*
-void connectWifi(const char *ssid, const char *password)
-{
-  WiFi.begin(ssid, password);
-}
-*/
