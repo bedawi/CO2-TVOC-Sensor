@@ -13,6 +13,7 @@ private:
   uint32_t m_waking_up_since;
   uint32_t m_coldstart_at;
   bool m_readings;
+  bool m_isAvailable;
 
 public:
   SensorTimer();
@@ -42,6 +43,10 @@ public:
   bool readingsWaiting();
 
   void readingsReported();
+
+  void setAvailable(bool isAvailable);
+
+  bool isAvailable();
 
 };
 

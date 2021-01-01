@@ -255,7 +255,7 @@ void takeReadings()
     bmetimer.readingsTaken();
   }
 
-  if (ccs.available() && ccstimer.isAvailable() && ccstimer.isReady())
+  if (ccstimer.isAvailable() && ccstimer.isReady())
   {
     Serial.println("Taking reading from CCS811");
     if (!ccs.readData())
@@ -311,12 +311,6 @@ void reportReadings()
   String topic = mqttTopicValue;
   if (ccstimer.readingsWaiting())
   {
-    // reporting to serial console
-    Serial.print("CO2: ");
-    Serial.print(CO2);
-    Serial.print("ppm, TVOC: ");
-    Serial.println(TVOC);
-
     // reporting to MQTT
     topic = mqttTopicValue;
     topic.concat("CO2");
@@ -341,20 +335,22 @@ void reportReadings()
     topic.concat("humidity");
     if (mqttClient.publish(topic.c_str(), String(g_bme_humidity)))
     {
-      Serial.print("Humidity value published");
+      Serial.print("Humidity value published: ");
       Serial.println(g_bme_humidity);
     }
     topic = mqttTopicValue;
     topic.concat("temperature");
     if (mqttClient.publish(topic.c_str(), String(g_bme_temperature)))
     {
-      Serial.println("Temperature value published.");
+      Serial.print("Temperature value published: ");
+      Serial.println(g_bme_temperature);
     }
     topic = mqttTopicValue;
     topic.concat("pressure");
     if (mqttClient.publish(topic.c_str(), String(g_bme_pressure)))
     {
-      Serial.println("Pressure value published.");
+      Serial.print("Pressure value published: ");
+      Serial.println(g_bme_pressure);
     }
     bmetimer.readingsReported();
   }

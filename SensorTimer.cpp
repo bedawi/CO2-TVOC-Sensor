@@ -8,6 +8,7 @@ SensorTimer::SensorTimer()
     m_readings = false;
     m_coldstart_time = 120000;
     m_coldstart_at = millis();
+    m_isAvailable = true;
 }
 
 void SensorTimer::startover()
@@ -102,4 +103,14 @@ bool SensorTimer::readingsWaiting()
 void SensorTimer::readingsReported()
 {
     m_readings = false;
+}
+
+void SensorTimer::setAvailable(bool isAvailable)
+{
+    m_isAvailable = isAvailable;
+}
+
+bool SensorTimer::isAvailable()
+{
+    return m_isAvailable;
 }
