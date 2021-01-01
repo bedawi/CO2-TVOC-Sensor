@@ -14,6 +14,7 @@ uint32_t    g_CCS811_wake_pin           = 2;            // Port to which WAKE pi
 
 /* BME/BMP280 sensor */
 uint8_t     g_bme_i2c_address           = 0x76;          // Address of sensor on I2C bus
+uint32_t    g_bme_report_period         = 180;          // Seconds between reports
 
 /* Serial */
 #define     SERIAL_BAUD_RATE            115200               // Speed for USB serial console

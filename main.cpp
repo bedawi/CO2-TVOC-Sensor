@@ -34,7 +34,7 @@ const int STRING_LEN = 128;
 #define NUMBER_LEN 32
 
 // -- Configuration specific key. The value should be modified if config structure was changed.
-#define CONFIG_VERSION "dem2"
+#define CONFIG_VERSION "2021-01-01"
 
 // -- When CONFIG_PIN is pulled to ground on startup, the Thing will use the initial
 //      password to buld an AP. (E.g. in case of lost password)
@@ -81,10 +81,10 @@ uint16_t CO2, TVOC;
 #include <Adafruit_Sensor.h>
 #include <Adafruit_BME280.h>
 Adafruit_BME280 bme;
+SensorTimer bmetimer;
 float g_bme_temperature;
 float g_bme_humidity;
 float g_bme_pressure;
-bool bmepresent = false;
 
 // other global variables
 int lastScreenUpdate = millis();
@@ -99,6 +99,7 @@ unsigned long lastMqttConnectionAttempt = 0;
 // ScreenHandler
 static ScreenHandler myScreenHandler;
 // Screen Pages
+ScreenPage screen0_info("Air Quality Sensor", CONFIG_VERSION);
 ScreenPage screen1_co2("CO2", "ppm", "parts per million");
 ScreenPage screen2_tvoc("TVOC", "ppb", "parts per billion");
 ScreenPage screen3_temperature("Temperature", "°C", "");
@@ -106,13 +107,13 @@ ScreenPage screen4_humidity("Humidity", "%", "");
 ScreenPage screen5_pressure("Pressure", "hpa", "");
 ScreenPage screen6_wifiAPSSID("AP-Mode, SSID:", thingName);
 ScreenPage screen7_wifiAPPassword("AP-Mode, PWD:", wifiInitialApPassword);
-
+ScreenPage screen8_ccs811error("Sensor error:", "CCS811");
 
 // -- Method declarations.
 void setup();
-bool takeReadings();
+void takeReadings();
 void display();
-bool reportReadings();
+void reportReadings();
 String tvocBbpToIAQ(uint16_t tvocbbm);
 void handleRoot();
 void mqttMessageReceived(String &topic, String &payload);
@@ -126,6 +127,7 @@ void setup()
   delay(1000);
 
   // Attaching screens to handler class
+  myScreenHandler.attachScreen(&screen0_info);
   myScreenHandler.attachScreen(&screen1_co2);
   myScreenHandler.attachScreen(&screen2_tvoc);
   myScreenHandler.attachScreen(&screen3_temperature);
@@ -133,6 +135,7 @@ void setup()
   myScreenHandler.attachScreen(&screen5_pressure);
   myScreenHandler.attachScreen(&screen6_wifiAPSSID);
   myScreenHandler.attachScreen(&screen7_wifiAPPassword);
+  myScreenHandler.attachScreen(&screen8_ccs811error);
 
   // Defining mode of PINs (Sensor CCS811 has a WAKE-PIN to control sleep)
   pinMode(g_CCS811_wake_pin, OUTPUT);
@@ -146,7 +149,7 @@ void setup()
   Serial.begin(115200);
   Serial.println();
   Serial.println("Starting up...");
-  
+
   // Setting priority of WiFi info screens to high, will be set to 0 when connection is established.
   screen6_wifiAPSSID.setPriority(2);
   screen7_wifiAPPassword.setPriority(2);
@@ -163,7 +166,7 @@ void setup()
   iotWebConf.setConfigSavedCallback(&configSaved);
   iotWebConf.setFormValidator(&formValidator);
   iotWebConf.setWifiConnectionCallback(&wifiConnected);
-  
+
   // -- Initializing the configuration.
   bool validConfig = iotWebConf.init();
   if (!validConfig)
@@ -188,26 +191,26 @@ void setup()
   mqttClient.onMessage(mqttMessageReceived);
 
   // -- CCS811 Sensor
-  // These timing options are set up in config.h
-  ccstimer.setRepeatTime(g_CCS811_report_period);
-  ccstimer.setWarmupTime(0);
-  ccstimer.setColdstartTime(g_CCS811_coldstart_period);
 
   if (!ccs.begin())
   {
     Serial.println("Failed to start sensor! Please check your wiring.");
-    Heltec.display->setFont(ArialMT_Plain_10);
-    Heltec.display->drawString(0, 20, "CCS811 sensor not available!");
-    Heltec.display->display();
-    while (1)
-      ;
+    ccstimer.setAvailable(false);
+    screen8_ccs811error.setPriority(1);
   }
   else
   {
     Serial.println("CCS811 sensor is online.");
+    screen8_ccs811error.setPriority(0);
+    screen8_ccs811error.setPriority(1);
+    ccstimer.setAvailable(true);
+    screen8_ccs811error.setPriority(0);
+    ccstimer.setRepeatTime(g_CCS811_report_period);
+    ccstimer.setWarmupTime(0);
+    ccstimer.setColdstartTime(g_CCS811_coldstart_period);
+    ccstimer.skipWaiting();
   }
-  Heltec.display->drawString(0, 20, "CCS811 warmup...");
-  Heltec.display->display();
+
   screen1_co2.setPriority(0);
   screen2_tvoc.setPriority(0);
 
@@ -215,34 +218,53 @@ void setup()
   if (!bme.begin(g_bme_i2c_address, &Wire))
   {
     Serial.println("Could not start BME/BMP280 sensor.");
+    bmetimer.setAvailable(false);
   }
   else
   {
     Serial.println("BME/BMP280 sensor is online.");
-    bmepresent = true;
     g_bme_humidity = bme.readHumidity();
     g_bme_temperature = bme.readTemperature();
     g_bme_pressure = bme.readPressure();
     screen3_temperature.setValue(g_bme_temperature);
     screen4_humidity.setValue(g_bme_humidity);
     screen5_pressure.setValue(g_bme_pressure);
+    bmetimer.setAvailable(true);
+    bmetimer.setRepeatTime(g_bme_report_period);
+    bmetimer.setWarmupTime(0);
+    bmetimer.setColdstartTime(0);
+    bmetimer.skipWaiting();
   }
 }
 
-bool takeReadings()
+void takeReadings()
 {
-  if (ccs.available())
+  if (bmetimer.isAvailable() && bmetimer.isReady())
   {
+    Serial.println("Taking reading from BME");
+    g_bme_humidity = bme.readHumidity();
+    g_bme_temperature = bme.readTemperature();
+    g_bme_pressure = bme.readPressure();
+    screen3_temperature.setValue(g_bme_temperature);
+    screen3_temperature.setPriority(1);
+    screen4_humidity.setValue(g_bme_humidity);
+    screen4_humidity.setPriority(1);
+    screen5_pressure.setValue(g_bme_pressure);
+    screen5_pressure.setPriority(1);
+    bmetimer.startover();
+    bmetimer.readingsTaken();
+  }
+
+  if (ccs.available() && ccstimer.isAvailable() && ccstimer.isReady())
+  {
+    Serial.println("Taking reading from CCS811");
     if (!ccs.readData())
     {
-      if (bmepresent)
+      if (bmetimer.isAvailable())
       {
         g_bme_humidity = bme.readHumidity();
         g_bme_temperature = bme.readTemperature();
         g_bme_pressure = bme.readPressure();
-        screen3_temperature.setValue(g_bme_temperature);
-        screen4_humidity.setValue(g_bme_humidity);
-        screen5_pressure.setValue(g_bme_pressure);
         ccs.setEnvironmentalData(g_bme_humidity, g_bme_temperature);
       }
       CO2 = ccs.geteCO2();
@@ -253,18 +275,18 @@ bool takeReadings()
       screen1_co2.setPriority(1);
       screen2_tvoc.setPriority(1);
       ccstimer.readingsTaken();
-      return true;
+      ccstimer.startover();
+      digitalWrite(g_CCS811_wake_pin, HIGH); // Sending Sensor to sleep...
     }
     else
     {
       // Reading failed
-      return false;
     }
   }
-  // Sensor unavailable
-  screen1_co2.setPriority(0);
-  screen2_tvoc.setPriority(0);
-  return false;
+  else
+  {
+    // Sensor unavailable
+  }
 }
 
 void display()
@@ -284,35 +306,43 @@ void display()
   }
 }
 
-bool reportReadings()
+void reportReadings()
 {
-  // reporting to serial console
-  Serial.print("CO2: ");
-  Serial.print(CO2);
-  Serial.print("ppm, TVOC: ");
-  Serial.println(TVOC);
-
-  // reporting to MQTT
   String topic = mqttTopicValue;
-  topic.concat("CO2");
-  if (mqttClient.publish(topic.c_str(), String(CO2)))
+  if (ccstimer.readingsWaiting())
   {
-    Serial.println("CO2 value published");
-  }
+    // reporting to serial console
+    Serial.print("CO2: ");
+    Serial.print(CO2);
+    Serial.print("ppm, TVOC: ");
+    Serial.println(TVOC);
 
-  topic = mqttTopicValue;
-  topic.concat("TVOC");
-  if (mqttClient.publish(topic.c_str(), String(TVOC)))
-  {
-    Serial.println("TVOC value published.");
+    // reporting to MQTT
+    topic = mqttTopicValue;
+    topic.concat("CO2");
+    if (mqttClient.publish(topic.c_str(), String(CO2)))
+    {
+      Serial.print("CO2 value published: ");
+      Serial.println(CO2);
+    }
+
+    topic = mqttTopicValue;
+    topic.concat("TVOC");
+    if (mqttClient.publish(topic.c_str(), String(TVOC)))
+    {
+      Serial.print("TVOC value published: ");
+      Serial.println(TVOC);
+    }
+    ccstimer.readingsReported();
   }
-  if (bmepresent)
+  if (bmetimer.readingsWaiting())
   {
     topic = mqttTopicValue;
     topic.concat("humidity");
     if (mqttClient.publish(topic.c_str(), String(g_bme_humidity)))
     {
-      Serial.println("Humidity value published.");
+      Serial.print("Humidity value published");
+      Serial.println(g_bme_humidity);
     }
     topic = mqttTopicValue;
     topic.concat("temperature");
@@ -326,8 +356,8 @@ bool reportReadings()
     {
       Serial.println("Pressure value published.");
     }
+    bmetimer.readingsReported();
   }
-  return true;
 }
 
 String tvocBbpToIAQ(uint16_t tvocbbm)
@@ -397,21 +427,18 @@ void loop()
   {
     ccstimer.wakeUp();
     // Waking Sensor up...
+    Serial.println("Waking up CCS811");
     digitalWrite(g_CCS811_wake_pin, LOW);
   }
 
-  if (ccstimer.isReady())
+  if (bmetimer.isTimetoWakeup())
   {
-    if (takeReadings())
-    {
-    }
-    if (reportReadings())
-    {
-      ccstimer.startover();
-      // Sensing Sensor to sleep...
-      digitalWrite(g_CCS811_wake_pin, HIGH);
-    }
+    Serial.println("Waking up BME280");
+    bmetimer.wakeUp();
   }
+
+  takeReadings();
+  reportReadings();
   display();
 }
 
