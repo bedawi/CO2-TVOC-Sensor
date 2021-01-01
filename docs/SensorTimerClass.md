@@ -44,7 +44,7 @@ SensorTimer ccstimer;
 4. Determine if a reading from the sensor can be attempted:
 
 ```c++
-if (ccstimer.isAvailable() && ccstimer.isReady())
+if (ccstimer.isAvailable() && ccstimer.isReady() && !ccstimer.isWarmingUpFromColdstart())
   {
     if (!ccs.readData())
     {

@@ -108,6 +108,7 @@ ScreenPage screen5_pressure("Pressure", "hpa", "");
 ScreenPage screen6_wifiAPSSID("AP-Mode, SSID:", thingName);
 ScreenPage screen7_wifiAPPassword("AP-Mode, PWD:", wifiInitialApPassword);
 ScreenPage screen8_ccs811error("Sensor error:", "CCS811");
+ScreenPage screen9_ccs811ready("CCS811 ready in", "s", "Please wait");
 
 // -- Method declarations.
 void setup();
@@ -136,6 +137,7 @@ void setup()
   myScreenHandler.attachScreen(&screen6_wifiAPSSID);
   myScreenHandler.attachScreen(&screen7_wifiAPPassword);
   myScreenHandler.attachScreen(&screen8_ccs811error);
+  myScreenHandler.attachScreen(&screen9_ccs811ready);
 
   // Defining mode of PINs (Sensor CCS811 has a WAKE-PIN to control sleep)
   pinMode(g_CCS811_wake_pin, OUTPUT);
@@ -208,7 +210,7 @@ void setup()
     ccstimer.setRepeatTime(g_CCS811_report_period);
     ccstimer.setWarmupTime(0);
     ccstimer.setColdstartTime(g_CCS811_coldstart_period);
-    ccstimer.skipWaiting();
+    screen9_ccs811ready.setValue(ccstimer.getReadyInSeconds());
   }
 
   screen1_co2.setPriority(0);
@@ -255,7 +257,7 @@ void takeReadings()
     bmetimer.readingsTaken();
   }
 
-  if (ccstimer.isAvailable() && ccstimer.isReady())
+  if (ccstimer.isAvailable() && ccstimer.isReady() && !ccstimer.isWarmingUpFromColdstart())
   {
     Serial.println("Taking reading from CCS811");
     if (!ccs.readData())
@@ -277,6 +279,7 @@ void takeReadings()
       ccstimer.readingsTaken();
       ccstimer.startover();
       digitalWrite(g_CCS811_wake_pin, HIGH); // Sending Sensor to sleep...
+      screen9_ccs811ready.setPriority(0);
     }
     else
     {
@@ -286,6 +289,11 @@ void takeReadings()
   else
   {
     // Sensor unavailable
+    if (ccstimer.isWarmingUpFromColdstart())
+    {
+      screen9_ccs811ready.setValue(ccstimer.getReadyInSeconds());
+      screen9_ccs811ready.setPriority(1);
+    }
   }
 }
 
