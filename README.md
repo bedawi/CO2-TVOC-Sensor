@@ -32,6 +32,7 @@ ccs.setEnvironmentalData(g_bme_humidity, g_bme_temperature);
 ### Connections
 The connections are:
 
+#### Heltec WiFi LoRa V2:
 ```
 ESP32   -   CCS811  -   BME/BMP280
 ==================================
@@ -40,6 +41,19 @@ GND     -   GND     -   GND
 4       -   SDA     -   SDA
 15      -   SCL     -   SCL
 3       -   WAKE
+```
+
+#### Heltec WiFi Kit 8
+Attention: Check the ![WiFi Kit 8 Pinout Diagram](https://resource.heltec.cn/download/WiFi_Kit_8/WIFI_Kit_8_Pinout_Diagram.pdf) to find the correct PINs. What's written on the NodeMCU is most likely wrong!
+
+```
+ESP8266 -   CCS811  -   BME/BMP280
+==================================
+GND     -   GND     -   GND
+3.3V    -   VCC     -   VIN
+GPIO4   -   SDA     -   SDA
+GPIO5   -   SCL     -   SCL
+GPIO14  -   WAKE
 ```
 
 
