@@ -31,6 +31,7 @@ public:
     ScreenPage(String prefix, String suffix, String unit);
     ScreenPage(String headline, String infomessage);
     void setValue(uint16_t value);
+    void setInfomessage(String infomessage);
     void setComment(String comment);
     void setPriority(uint8_t priority);
     uint8_t getPriority();

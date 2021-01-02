@@ -26,6 +26,11 @@ void ScreenPage::setValue(uint16_t value)
   m_value = value;
 }
 
+void ScreenPage::setInfomessage(String infomessage)
+{
+  m_infoMessage = infomessage;
+}
+
 void ScreenPage::setComment(String comment)
 {
   m_comment = comment;
