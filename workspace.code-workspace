@@ -1,0 +1,17 @@
+{
+	"folders": [
+		{
+			"name": "201218-173041-nodemcuv2",
+			"path": "../201218-173041-nodemcuv2"
+		},
+		{
+			"name": "ESP32 Gas Sensor",
+			"path": "."
+		},
+		{
+			"name": "OLED Test",
+			"path": "../OLED Test"
+		}
+	],
+	"settings": {}
+}
