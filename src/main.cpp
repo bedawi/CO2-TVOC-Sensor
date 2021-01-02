@@ -6,21 +6,20 @@
  *
  * This software may be modified and distributed under the terms
  * of the MIT license.  See the LICENSE file for details.
+ * 
+ * Please check platformio.ini file for details on libraries needed.
  */
 
-/*
- * Libraries needed:
- * Adafruit BusIO
- * Adafruit SSD1306
- * Adafruit GFX Library
- * Heltec ESP32 Dev-Boards by Heltec Automation
- * Adafruit CCS811 Library by Adafruit
- * IotWebConf by Balazs Kelemen // Warning: The version 2.2.3 on PlatformIO is outdated/missing files. Download from original repo!
- * MQTT by Joel Gaehwiler
- * Adafruit BME280 Library by Adafriut
-*/
-
 #include <Arduino.h>
+
+#if defined( WIFI_Kit_8 )
+#include "config_WIFI_Kit_8.h"
+#endif
+
+#if defined( WIFI_LoRa_32_V2 )
+#include "config_WIFI_LoRa_32.h"
+#endif
+
 #include "SensorTimer.h"
 #include "ScreenHandler.h"
 #include "ScreenPage.h"
@@ -182,6 +181,9 @@ void setup()
   else
   {
     Serial.println("Found valid IoTWebConf/MQTT config in EEPROM");
+    // Todo: Found out how to read current WiFi SSID and password.
+    screen6_wifiAPSSID.setInfomessage(iotWebConf.getThingName());
+    screen7_wifiAPPassword.setInfomessage("???");
   }
 
   // -- Set up required URL handlers on the web server.
