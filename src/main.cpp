@@ -12,11 +12,11 @@
 
 #include <Arduino.h>
 
-#if defined( WIFI_Kit_8 )
+#if defined(WIFI_Kit_8)
 #include "config_WIFI_Kit_8.h"
 #endif
 
-#if defined( WIFI_LoRa_32_V2 )
+#if defined(WIFI_LoRa_32_V2)
 #include "config_WIFI_LoRa_32.h"
 #endif
 
@@ -27,6 +27,7 @@
 #include <IotWebConfUsing.h> // This loads aliases for easier class names.
 #include <MQTT.h>
 #include "config.h"
+#include <tuple>
 
 // Configuration for IotWebConf
 const int STRING_LEN = 128;
@@ -75,6 +76,7 @@ IotWebConfTextParameter mqttTopicParam = IotWebConfTextParameter("MQTT topic", "
 Adafruit_CCS811 ccs;
 SensorTimer ccstimer;
 uint16_t CO2, TVOC;
+bool baselineSet;
 
 // Includes and instanciations for BME/BMP280 Sensor
 #include <Adafruit_Sensor.h>
@@ -84,6 +86,10 @@ SensorTimer bmetimer;
 float g_bme_temperature;
 float g_bme_humidity;
 float g_bme_pressure;
+
+// Includes for storing and reading files / settings
+#include <SPIFFS.h>
+#include <ArduinoJson.h>
 
 // other global variables
 int lastScreenUpdate = millis();
@@ -116,9 +122,13 @@ void display();
 void reportReadings();
 String tvocBbpToIAQ(uint16_t tvocbbm);
 void handleRoot();
+void handleBaselineSet();
+void handleBaselineRemove();
 void mqttMessageReceived(String &topic, String &payload);
 bool connectMqtt();
 bool connectMqttOptions();
+std::tuple<bool, int> ccs811LoadBaseline();
+void ccs811SaveBaseline(int baseline);
 
 // -- Setup
 void setup()
@@ -168,7 +178,29 @@ void setup()
   iotWebConf.setFormValidator(&formValidator);
   iotWebConf.setWifiConnectionCallback(&wifiConnected);
 
+  // Initializing storage SPIFFS object
+  if (!SPIFFS.begin(true))
+  {
+    Serial.println("Error initializing SPIFFS");
+    while (true)
+    {
+    }
+  }
+
+  // For debugging: Listing all files at start
+  File root = SPIFFS.open("/");
+  File file = root.openNextFile();
+  while (file)
+  {
+    Serial.print("FILE: ");
+    Serial.println(file.name());
+    file = root.openNextFile();
+  }
+  root.close();
+  file.close();
+
   // -- Initializing the configuration.
+  Serial.println("Loading iotWebConf");
   bool validConfig = iotWebConf.init();
   if (!validConfig)
   {
@@ -183,11 +215,12 @@ void setup()
     Serial.println("Found valid IoTWebConf/MQTT config in EEPROM");
     // Todo: Found out how to read current WiFi SSID and password.
     screen6_wifiAPSSID.setInfomessage(iotWebConf.getThingName());
-    screen7_wifiAPPassword.setInfomessage("???");
   }
 
   // -- Set up required URL handlers on the web server.
   server.on("/", handleRoot);
+  server.on("/resetBaseline", handleBaselineSet);
+  server.on("/removeBaseline", handleBaselineRemove);
   server.on("/config", [] { iotWebConf.handleConfig(); });
   server.onNotFound([]() { iotWebConf.handleNotFound(); });
 
@@ -210,9 +243,24 @@ void setup()
     ccstimer.setAvailable(true);
     screen8_ccs811error.setPriority(0);
     ccstimer.setRepeatTime(g_CCS811_report_period);
-    ccstimer.setWarmupTime(0);
-    ccstimer.setColdstartTime(g_CCS811_coldstart_period);
-    screen9_ccs811ready.setValue(ccstimer.getReadyInSeconds());
+    ccstimer.setWarmupTime(g_CCS811_warmup_period);
+
+    auto baselinevals = ccs811LoadBaseline();
+    if (std::get<0>(baselinevals) == true)
+    {
+      Serial.println("Baseline restored. Skipping coldstart period");
+      ccs.setBaseline(std::get<1>(baselinevals));
+      ccstimer.setColdstartTime(g_CCS811_warmup_period);
+      ccstimer.skipWaiting();
+      screen9_ccs811ready.setPriority(0);
+      baselineSet = true;
+    }
+    else
+    {
+      ccstimer.setColdstartTime(g_CCS811_coldstart_period);
+      screen9_ccs811ready.setValue(ccstimer.getReadyInSeconds());
+      baselineSet = false;
+    }
   }
 
   screen1_co2.setPriority(0);
@@ -274,6 +322,13 @@ void takeReadings()
       CO2 = ccs.geteCO2();
       screen1_co2.setValue(CO2);
       TVOC = ccs.getTVOC();
+      // After the coldstarttime
+      if (baselineSet != true)
+      {
+        int baseline = ccs.getBaseline();
+        ccs811SaveBaseline(baseline);
+        baselineSet = true;
+      }
       screen2_tvoc.setValue(TVOC);
       screen2_tvoc.setComment(tvocBbpToIAQ(TVOC));
       screen1_co2.setPriority(1);
@@ -471,10 +526,28 @@ void handleRoot()
   s += "<li>MQTT server: ";
   s += mqttServerValue;
   s += "</ul>";
+  s += "<p><a href=\"/resetBaseline\"><button class=\"button\">Set CCS811 Baseline</button></a></p>";
+  s += "<p><a href=\"/removeBaseline\"><button class=\"button\">Remove CCS811 Baseline</button></a></p>";
   s += "Go to <a href='config'>configure page</a> to change values.";
   s += "</body></html>\n";
 
   server.send(200, "text/html", s);
+}
+
+void handleBaselineSet()
+{
+  int baseline = ccs.getBaseline();
+  ccs811SaveBaseline(baseline);
+  baselineSet = true;
+  handleRoot();
+}
+
+void handleBaselineRemove()
+{
+  SPIFFS.remove(g_filesystem_ccs811setting);
+  handleRoot();
+  iotWebConf.delay(1000);
+  ESP.restart();
 }
 
 void wifiConnected()
@@ -544,4 +617,46 @@ bool connectMqttOptions()
 void mqttMessageReceived(String &topic, String &payload)
 {
   Serial.println("Incoming: " + topic + " - " + payload);
+}
+
+std::tuple<bool, int> ccs811LoadBaseline()
+{
+  File file = SPIFFS.open(g_filesystem_ccs811setting);
+  if (file)
+  {
+    StaticJsonDocument<200> doc;
+    DeserializationError error = deserializeJson(doc, file);
+    int baseline = doc["baseline"];
+    if (!error)
+    {
+      Serial.print("Read baseline from file: ");
+      Serial.println(baseline);
+      return std::make_tuple(true, baseline);
+    }
+    else
+    {
+      Serial.println("Error reading file!");
+      return std::make_tuple(false, 0);
+    }
+  }
+  return std::make_tuple(false, 0);
+}
+
+void ccs811SaveBaseline(int baseline)
+{
+  Serial.print("Baseline: ");
+  Serial.println(baseline);
+  File outfile = SPIFFS.open(g_filesystem_ccs811setting, "w");
+  StaticJsonDocument<200> doc;
+  doc["baseline"] = baseline;
+  if (serializeJson(doc, outfile) == 0)
+  {
+    Serial.print("Error: Could not write to file ");
+    Serial.println(g_filesystem_ccs811setting);
+  }
+  else
+  {
+    Serial.println("Value stored in file successfully");
+  }
+  outfile.close();
 }

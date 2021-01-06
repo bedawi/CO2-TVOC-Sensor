@@ -6,7 +6,7 @@
 /* MQTT */
 
 /* SEN-CCS811 Sensor */
-uint32_t    g_CCS811_coldstart_period   = 1800;          // Seconds to warm up PMS before reading
+uint32_t    g_CCS811_coldstart_period   = 1800;         // Seconds to warm up PMS before reading
 uint32_t    g_CCS811_warmup_period      = 30;           // Seconds to warm up PMS before reading
 uint32_t    g_CCS811_report_period      = 180;          // Seconds between reports
 
@@ -19,6 +19,9 @@ uint32_t    g_bme_report_period         = 60;          // Seconds between report
 
 /* Serial */
 #define     SERIAL_BAUD_RATE    115200               // Speed for USB serial console
+
+/* Storage */
+String      g_filesystem_ccs811setting  = "/ccs811.conf"; // Must begin with a slash ("/")!
 
 /* ----------------- Hardware-specific config ---------------------- */
 
