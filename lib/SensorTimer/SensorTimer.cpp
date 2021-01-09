@@ -6,9 +6,15 @@ SensorTimer::SensorTimer()
     m_warmup_time = 60000;
     startover();
     m_readings = false;
-    m_coldstart_time = 120000;
+    m_coldstart_time = 0;
     m_coldstart_at = millis();
     m_isAvailable = true;
+    m_debugMode = false;
+}
+
+void SensorTimer::debug(bool onoff)
+{
+    m_debugMode = onoff;
 }
 
 void SensorTimer::startover()
@@ -31,10 +37,13 @@ bool SensorTimer::isReady()
 
 bool SensorTimer::isWarmingUpFromColdstart()
 {
-    if (millis() < (m_coldstart_at + m_coldstart_time - m_warmup_time))
+    if (m_coldstart_time != 0)
     {
-        // Sensor is not yet ready from cold start.
-        return true;
+        if (millis() < (m_coldstart_at + m_coldstart_time - m_warmup_time))
+        {
+            // Sensor is not yet ready from cold start.
+            return true;
+        }
     }
     return false;
 }
@@ -49,10 +58,18 @@ bool SensorTimer::isTimetoWakeup()
 {
     if (isWarmingUpFromColdstart())
     {
+        if (m_debugMode)
+        {
+            Serial.println("Is waking from coldstart");
+        }
         return false;
     }
     if (m_waking_up_since != 0)
     {
+        if (m_debugMode)
+        {
+            Serial.println("Is waking up");
+        }
         return false;
     }
     if (millis() >= (m_init_time + m_repeat_time - m_warmup_time))

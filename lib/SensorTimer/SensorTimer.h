@@ -14,9 +14,12 @@ private:
   uint32_t m_coldstart_at;
   bool m_readings;
   bool m_isAvailable;
+  bool m_debugMode;
 
 public:
   SensorTimer();
+
+  void debug(bool onoff);
 
   void startover();
 
