@@ -32,8 +32,8 @@ ccs.setEnvironmentalData(g_bme_humidity, g_bme_temperature);
 
 ## Optional Hardware
 
-### PME5003 Particle Sensor
-A PME5003 particle sensor can be connected to read fine dust values PM1, PM2.5, and PM10.
+### PMS5003 Particle Sensor
+A PMS5003 particle sensor can be connected to read fine dust values PM1, PM2.5, and PM10.
 
 
 ## Connections
