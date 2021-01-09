@@ -20,6 +20,14 @@ uint32_t    g_bme_report_period         = 60;          // Seconds between report
 /* Serial */
 #define     SERIAL_BAUD_RATE    115200               // Speed for USB serial console
 
+/* PMS5003 Sensor */
+bool        PMS5003Connected            = true;
+#define     PMS_RX_PIN              22               // Rx from PMS (== PMS Tx)
+#define     PMS_TX_PIN              23               // Tx to PMS (== PMS Rx)
+#define     PMS_BAUD_RATE         9600               // PMS5003 uses 9600bps
+uint32_t    g_PMS_warmup_period         = 30;
+uint32_t    g_PMS_report_period         = 180;
+
 /* Storage */
 String      g_filesystem_ccs811setting  = "/ccs811.conf"; // Must begin with a slash ("/")!
 

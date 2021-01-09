@@ -41,9 +41,16 @@ GND     -   GND     -   GND
 4       -   SDA     -   SDA
 15      -   SCL     -   SCL
 3       -   WAKE
+
+ESP32   -   PMS5003
+===================
+22 (RX) -   5 (TX)
+23 (TX) -   4 (RX)
+GND     -   2 (GND)
+5V      -   1 (VCC)
 ```
 
-#### Heltec WiFi Kit 8
+#### Heltec WiFi Kit 8 (currently not compiling!)
 Attention: Check the ![WiFi Kit 8 Pinout Diagram](https://resource.heltec.cn/download/WiFi_Kit_8/WIFI_Kit_8_Pinout_Diagram.pdf) to find the correct PINs. What's written on the NodeMCU is most likely wrong!
 
 ```

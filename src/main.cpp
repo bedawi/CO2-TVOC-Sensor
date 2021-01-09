@@ -87,6 +87,14 @@ float g_bme_temperature;
 float g_bme_humidity;
 float g_bme_pressure;
 
+// Includes and instanciations for PMS Sensor
+#include <PMserial.h>
+SerialPM pms(PMSx003, PMS_RX_PIN, PMS_TX_PIN); // PMSx003, RX, TX
+SensorTimer pmstimer;
+uint16_t g_pms_pm1;
+uint16_t g_pms_pm25;
+uint16_t g_pms_pm10;
+
 // Includes for storing and reading files / settings
 #include <SPIFFS.h>
 #include <ArduinoJson.h>
@@ -114,6 +122,7 @@ ScreenPage screen6_wifiAPSSID("AP-Mode, SSID:", thingName);
 ScreenPage screen7_wifiAPPassword("AP-Mode, PWD:", wifiInitialApPassword);
 ScreenPage screen8_ccs811error("Sensor error:", "CCS811");
 ScreenPage screen9_ccs811ready("CCS811 ready in", "s", "Please wait");
+ScreenPage screen10_pm25("PM 2.5", "µg/m3", "Fine Dust"); // You can add more screens for PM1 and PM10
 
 // -- Method declarations.
 void setup();
@@ -147,6 +156,7 @@ void setup()
   myScreenHandler.attachScreen(&screen7_wifiAPPassword);
   myScreenHandler.attachScreen(&screen8_ccs811error);
   myScreenHandler.attachScreen(&screen9_ccs811ready);
+  myScreenHandler.attachScreen(&screen10_pm25);
 
   // Defining mode of PINs (Sensor CCS811 has a WAKE-PIN to control sleep)
   pinMode(g_CCS811_wake_pin, OUTPUT);
@@ -157,6 +167,7 @@ void setup()
   Heltec.display->flipScreenVertically();
 
   // setting up WiFi (IoT Web)
+
   Serial.begin(115200);
   Serial.println();
   Serial.println("Starting up...");
@@ -224,11 +235,11 @@ void setup()
   server.on("/config", [] { iotWebConf.handleConfig(); });
   server.onNotFound([]() { iotWebConf.handleNotFound(); });
 
+  // -- Set up MQTT client
   mqttClient.begin(mqttServerValue, net);
   mqttClient.onMessage(mqttMessageReceived);
 
   // -- CCS811 Sensor
-
   if (!ccs.begin())
   {
     Serial.println("Failed to start sensor! Please check your wiring.");
@@ -287,10 +298,32 @@ void setup()
     bmetimer.setColdstartTime(0);
     bmetimer.skipWaiting();
   }
+
+  // We cannot test for the PMS sensor because its connected via softwareserial.
+  // Set the variable PMS5003Connected in config.h to true if you want to connect 
+  // a PMSx003 sensor!
+  if (PMS5003Connected)
+  {
+    // Setting up the PMS-Sensor
+    pms.init();
+    pmstimer.setAvailable(true);
+    pmstimer.setWarmupTime(g_PMS_warmup_period);
+    pmstimer.setRepeatTime(g_PMS_report_period);
+    pmstimer.skipWaiting();
+    Serial.println("PMS Sensor set up");
+    pms.sleep();
+  }
+  else
+  {
+    pmstimer.setAvailable(false);
+    Serial.println("PMS-Sensor not activated - check config.h");
+  }
+  screen10_pm25.setPriority(0);
 }
 
 void takeReadings()
 {
+  // BME sensor
   if (bmetimer.isAvailable() && bmetimer.isReady())
   {
     Serial.println("Taking reading from BME");
@@ -307,6 +340,7 @@ void takeReadings()
     bmetimer.readingsTaken();
   }
 
+  // CCS811 sensor
   if (ccstimer.isAvailable() && ccstimer.isReady() && !ccstimer.isWarmingUpFromColdstart())
   {
     Serial.println("Taking reading from CCS811");
@@ -352,6 +386,20 @@ void takeReadings()
       screen9_ccs811ready.setPriority(1);
     }
   }
+
+  // PMSx003 sensor
+  if (pmstimer.isAvailable() && pmstimer.isReady())
+  {
+    pms.read(); // read the PM sensor
+    g_pms_pm1 = pms.pm01;
+    g_pms_pm25 = pms.pm25;
+    g_pms_pm10 = pms.pm10;
+    screen10_pm25.setValue(g_pms_pm25);
+    screen10_pm25.setPriority(1);
+    pmstimer.readingsTaken();
+    pmstimer.startover();
+    pms.sleep();
+  }
 }
 
 void display()
@@ -374,6 +422,8 @@ void display()
 void reportReadings()
 {
   String topic = mqttTopicValue;
+
+  // CCS811 readings
   if (ccstimer.readingsWaiting())
   {
     // reporting to MQTT
@@ -394,6 +444,8 @@ void reportReadings()
     }
     ccstimer.readingsReported();
   }
+
+  // BME readings
   if (bmetimer.readingsWaiting())
   {
     topic = mqttTopicValue;
@@ -418,6 +470,33 @@ void reportReadings()
       Serial.println(g_bme_pressure);
     }
     bmetimer.readingsReported();
+  }
+
+  // PMS readings
+  if (pmstimer.readingsWaiting())
+  {
+    topic = mqttTopicValue;
+    topic.concat("pm1");
+    if (mqttClient.publish(topic.c_str(), String(g_pms_pm1)))
+    {
+      Serial.print("PM 1 value published: ");
+      Serial.println(g_pms_pm1);
+    }
+    topic = mqttTopicValue;
+    topic.concat("pm25");
+    if (mqttClient.publish(topic.c_str(), String(g_pms_pm25)))
+    {
+      Serial.print("PM 2.5 value published: ");
+      Serial.println(g_pms_pm25);
+    }
+    topic = mqttTopicValue;
+    topic.concat("pm10");
+    if (mqttClient.publish(topic.c_str(), String(g_pms_pm10)))
+    {
+      Serial.print("PM 10 value published: ");
+      Serial.println(g_pms_pm10);
+    }
+    pmstimer.readingsReported();
   }
 }
 
@@ -496,6 +575,13 @@ void loop()
   {
     Serial.println("Waking up BME280");
     bmetimer.wakeUp();
+  }
+
+  if (pmstimer.isTimetoWakeup())
+  {
+    Serial.println("Waking up PMS Sensor");
+    pms.wake();
+    pmstimer.wakeUp();
   }
 
   takeReadings();
@@ -635,7 +721,8 @@ std::tuple<bool, int> ccs811LoadBaseline()
     }
     else
     {
-      Serial.println("Error reading file!");
+      Serial.print("Error reading baseline from file: ");
+      Serial.println(g_filesystem_ccs811setting);
       return std::make_tuple(false, 0);
     }
   }
