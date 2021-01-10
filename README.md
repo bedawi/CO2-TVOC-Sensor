@@ -84,7 +84,7 @@ GPIO14  -   WAKE
 
 Must have:
 
-* MGTT Broker (e.g. Mosquitto)
+* MQTT Broker (e.g. Mosquitto)
 
 Optional for storage and visualization of long term data:
 
