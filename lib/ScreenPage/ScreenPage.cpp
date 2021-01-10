@@ -1,6 +1,6 @@
 #include "ScreenPage.h"
 
-ScreenPage::ScreenPage(String prefix, String suffix, String comment)
+ScreenPage::ScreenPage(String prefix, String suffix, String comment):m_bitmap(nullptr)
 {
   m_headline = prefix;
   m_suffix = suffix;
@@ -12,7 +12,7 @@ ScreenPage::ScreenPage(String prefix, String suffix, String comment)
   m_screenType = 0; // This is a ValueScreen - a Screen showing a value.
 }
 
-ScreenPage::ScreenPage(String headline, String infoMessage)
+ScreenPage::ScreenPage(String headline, String infoMessage):m_bitmap(nullptr)
 {
   m_headline = headline;
   m_infoMessage = infoMessage;
@@ -39,6 +39,13 @@ void ScreenPage::setComment(String comment)
 void ScreenPage::setPriority(uint8_t priority)
 {
   m_priority = priority;
+}
+
+void ScreenPage::setIcon(uint16_t width, uint16_t height, unsigned char* icon)
+{
+  this->m_bitmap = icon;
+  m_bitmap_width = width;
+  m_bitmap_heigth = height;
 }
 
 uint8_t ScreenPage::getPriority()
@@ -82,4 +89,13 @@ String ScreenPage::getLine2()
 String ScreenPage::getLine3()
 {
   return m_comment;
+}
+
+unsigned char * ScreenPage::getIcon()
+{
+  return this->m_bitmap;
+}
+
+std::tuple<int, int> ScreenPage::getIconSize() {
+  return std::make_tuple(m_bitmap_width, m_bitmap_heigth);
 }

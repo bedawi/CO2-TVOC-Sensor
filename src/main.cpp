@@ -71,6 +71,9 @@ IotWebConfTextParameter mqttTopicParam = IotWebConfTextParameter("MQTT topic", "
 // Includes for SSD1306 Display
 #include <heltec.h>
 
+// Includes for icons
+#include "icons/splashscreen.xbm"
+
 // Includes and instanciations for CCS811 Sensor
 #include "Adafruit_CCS811.h"
 Adafruit_CCS811 ccs;
@@ -145,6 +148,9 @@ void setup()
   // A second of delay helps debugging. In VS Code the serial monitor needs a second to start after upload of firmware.
   delay(1000);
 
+  // Example how to set an icon to a specific screen.
+  //screen3_temperature.setIcon(icon_width, icon_height, static_cast<unsigned char *>(icon_30x30_bits));
+
   // Attaching screens to handler class
   myScreenHandler.attachScreen(&screen0_info);
   myScreenHandler.attachScreen(&screen1_co2);
@@ -165,9 +171,10 @@ void setup()
   // setting up display
   Heltec.display->init();
   Heltec.display->flipScreenVertically();
+  Heltec.display->drawXbm(0, 0, splashscreen_width, splashscreen_height, splashscreen_bits);
+  Heltec.display->display();
 
   // setting up WiFi (IoT Web)
-
   Serial.begin(115200);
   Serial.println();
   Serial.println("Starting up...");
@@ -300,7 +307,7 @@ void setup()
   }
 
   // We cannot test for the PMS sensor because its connected via softwareserial.
-  // Set the variable PMS5003Connected in config.h to true if you want to connect 
+  // Set the variable PMS5003Connected in config.h to true if you want to connect
   // a PMSx003 sensor!
   if (PMS5003Connected)
   {
@@ -404,16 +411,28 @@ void takeReadings()
 
 void display()
 {
+  int line1 = 0;
+  int line2 = 20;
+  int line3 = 50;
   if ((lastScreenUpdate + (changeScreenSeconds * 1000)) < millis())
   {
     ScreenPage *currentScreenPage = myScreenHandler.returnNextScreen();
     Heltec.display->clear();
     Heltec.display->setFont(ArialMT_Plain_16);
-    Heltec.display->drawString(0, 0, currentScreenPage->getLine1());
-    Heltec.display->setFont(ArialMT_Plain_24);
-    Heltec.display->drawString(10, 20, currentScreenPage->getLine2());
+    Heltec.display->drawString(0, line1, currentScreenPage->getLine1());
+    if (currentScreenPage->getIcon() != nullptr)
+    {
+      //Heltec.display->drawXbm(0, line2-2, icon_dust_30x30_width, icon_dust_30x30_height, currentScreenPage->getIcon());
+      Heltec.display->setFont(ArialMT_Plain_24);
+      Heltec.display->drawString(35, line2, currentScreenPage->getLine2());
+    }
+    else
+    {
+      Heltec.display->setFont(ArialMT_Plain_24);
+      Heltec.display->drawString(10, line2, currentScreenPage->getLine2());
+    }
     Heltec.display->setFont(ArialMT_Plain_10);
-    Heltec.display->drawString(0, 50, currentScreenPage->getLine3());
+    Heltec.display->drawString(0, line3, currentScreenPage->getLine3());
     Heltec.display->display();
     lastScreenUpdate = millis();
   }

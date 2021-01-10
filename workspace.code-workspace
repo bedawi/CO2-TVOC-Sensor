@@ -22,7 +22,9 @@
 			"cmath": "cpp",
 			"type_traits": "cpp",
 			"typeinfo": "cpp",
-			"utility": "cpp"
+			"utility": "cpp",
+			"*.xbm": "cpp",
+			"tuple": "cpp"
 		}
 	}
 }
