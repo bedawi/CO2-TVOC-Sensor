@@ -1,6 +1,9 @@
 #include "ScreenPage.h"
 
-ScreenPage::ScreenPage(String prefix, String suffix, String comment):m_bitmap(nullptr)
+/*
+ * Standard screen (type 0) shows values from the sensor
+ */
+ScreenPage::ScreenPage(String prefix, String suffix, String comment) : m_bitmap(nullptr)
 {
   m_headline = prefix;
   m_suffix = suffix;
@@ -12,13 +15,28 @@ ScreenPage::ScreenPage(String prefix, String suffix, String comment):m_bitmap(nu
   m_screenType = 0; // This is a ValueScreen - a Screen showing a value.
 }
 
-ScreenPage::ScreenPage(String headline, String infoMessage):m_bitmap(nullptr)
+/*
+ * Standard screen (type 1) shows information messages
+ */
+ScreenPage::ScreenPage(String headline, String infoMessage) : m_bitmap(nullptr)
 {
   m_headline = headline;
   m_infoMessage = infoMessage;
   m_screenType = 1; // This is an infoScreen - it does not show a value but a message like "WiFi Down"
   m_priority = 1;
   m_comment = "";
+}
+
+/*
+ * Standard screen (type 2) shows bitmap splash screens
+ */
+ScreenPage::ScreenPage(uint16_t width, uint16_t height, unsigned char *icon) : m_bitmap(nullptr)
+{
+  m_screenType = 2;
+  m_priority = 1;
+  m_bitmap_width = width;
+  m_bitmap_heigth = height;
+  this->m_bitmap = icon;
 }
 
 void ScreenPage::setValue(uint16_t value)
@@ -41,7 +59,7 @@ void ScreenPage::setPriority(uint8_t priority)
   m_priority = priority;
 }
 
-void ScreenPage::setIcon(uint16_t width, uint16_t height, unsigned char* icon)
+void ScreenPage::setIcon(uint16_t width, uint16_t height, unsigned char *icon)
 {
   this->m_bitmap = icon;
   m_bitmap_width = width;
@@ -51,6 +69,11 @@ void ScreenPage::setIcon(uint16_t width, uint16_t height, unsigned char* icon)
 uint8_t ScreenPage::getPriority()
 {
   return m_priority;
+}
+
+uint8_t ScreenPage::getType()
+{
+  return m_screenType;
 }
 
 String ScreenPage::getLine1()
@@ -91,11 +114,12 @@ String ScreenPage::getLine3()
   return m_comment;
 }
 
-unsigned char * ScreenPage::getIcon()
+unsigned char *ScreenPage::getIcon()
 {
   return this->m_bitmap;
 }
 
-std::tuple<int, int> ScreenPage::getIconSize() {
+std::tuple<int, int> ScreenPage::getIconSize()
+{
   return std::make_tuple(m_bitmap_width, m_bitmap_heigth);
 }

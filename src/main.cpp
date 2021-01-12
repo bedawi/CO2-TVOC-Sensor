@@ -115,7 +115,7 @@ unsigned long lastMqttConnectionAttempt = 0;
 // ScreenHandler
 static ScreenHandler myScreenHandler;
 // Screen Pages
-ScreenPage screen0_info("Air Quality Sensor", CONFIG_VERSION);
+ScreenPage screen0_info(splashscreen_width, splashscreen_height, static_cast<unsigned char *>(splashscreen_bits));
 ScreenPage screen1_co2("CO2", "ppm", "parts per million");
 ScreenPage screen2_tvoc("TVOC", "ppb", "parts per billion");
 ScreenPage screen3_temperature("Temperature", "°C", "");
@@ -171,6 +171,7 @@ void setup()
   // setting up display
   Heltec.display->init();
   Heltec.display->flipScreenVertically();
+  // Show splashscreen while setup is running
   Heltec.display->drawXbm(0, 0, splashscreen_width, splashscreen_height, splashscreen_bits);
   Heltec.display->display();
 
@@ -418,21 +419,28 @@ void display()
   {
     ScreenPage *currentScreenPage = myScreenHandler.returnNextScreen();
     Heltec.display->clear();
-    Heltec.display->setFont(ArialMT_Plain_16);
-    Heltec.display->drawString(0, line1, currentScreenPage->getLine1());
-    if (currentScreenPage->getIcon() != nullptr)
+    if (currentScreenPage->getType() == 2)
     {
-      //Heltec.display->drawXbm(0, line2-2, icon_dust_30x30_width, icon_dust_30x30_height, currentScreenPage->getIcon());
-      Heltec.display->setFont(ArialMT_Plain_24);
-      Heltec.display->drawString(35, line2, currentScreenPage->getLine2());
+      Heltec.display->drawXbm(0, 0, std::get<0>(currentScreenPage->getIconSize()), std::get<1>(currentScreenPage->getIconSize()), currentScreenPage->getIcon());
     }
     else
     {
-      Heltec.display->setFont(ArialMT_Plain_24);
-      Heltec.display->drawString(10, line2, currentScreenPage->getLine2());
+      Heltec.display->setFont(ArialMT_Plain_16);
+      Heltec.display->drawString(0, line1, currentScreenPage->getLine1());
+      if (currentScreenPage->getIcon() != nullptr)
+      {
+        //Heltec.display->drawXbm(0, line2-2, icon_dust_30x30_width, icon_dust_30x30_height, currentScreenPage->getIcon());
+        Heltec.display->setFont(ArialMT_Plain_24);
+        Heltec.display->drawString(35, line2, currentScreenPage->getLine2());
+      }
+      else
+      {
+        Heltec.display->setFont(ArialMT_Plain_24);
+        Heltec.display->drawString(10, line2, currentScreenPage->getLine2());
+      }
+      Heltec.display->setFont(ArialMT_Plain_10);
+      Heltec.display->drawString(0, line3, currentScreenPage->getLine3());
     }
-    Heltec.display->setFont(ArialMT_Plain_10);
-    Heltec.display->drawString(0, line3, currentScreenPage->getLine3());
     Heltec.display->display();
     lastScreenUpdate = millis();
   }
