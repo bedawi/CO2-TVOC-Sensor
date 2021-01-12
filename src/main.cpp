@@ -344,6 +344,7 @@ void takeReadings()
     screen4_humidity.setPriority(1);
     screen5_pressure.setValue(g_bme_pressure);
     screen5_pressure.setPriority(1);
+    screen0_info.setPriority(0);
     bmetimer.startover();
     bmetimer.readingsTaken();
   }
@@ -375,6 +376,7 @@ void takeReadings()
       screen2_tvoc.setComment(tvocBbpToIAQ(TVOC));
       screen1_co2.setPriority(1);
       screen2_tvoc.setPriority(1);
+      screen0_info.setPriority(0);
       ccstimer.readingsTaken();
       ccstimer.startover();
       digitalWrite(g_CCS811_wake_pin, HIGH); // Sending Sensor to sleep...
@@ -404,6 +406,7 @@ void takeReadings()
     g_pms_pm10 = pms.pm10;
     screen10_pm25.setValue(g_pms_pm25);
     screen10_pm25.setPriority(1);
+    screen0_info.setPriority(0);
     pmstimer.readingsTaken();
     pmstimer.startover();
     pms.sleep();
