@@ -46,7 +46,7 @@ uint8_t ScreenHandler::getScreensCount(uint8_t priority)
 
 ScreenPage *ScreenHandler::returnNextScreen()
 {
-    // if any screen has a higher priority then 1, then change the priority of screens we present to 2. 
+    // if any screen has a higher priority then 1, then change the priority of screens we present to 2.
     // screens with priority 1 (and always 0) will not be shown.
     if (this->getScreensCount(2) != 0)
     {
@@ -54,9 +54,17 @@ ScreenPage *ScreenHandler::returnNextScreen()
     }
     else
     {
-        m_priority = 1;
+        if (this->getScreensCount(1) != 0)
+        {
+            m_priority = 1;
+        }
+        else
+        {
+            // Fallback: If no screens with either priority 2 or 1 are defined, then...
+            m_priority = 0;
+        }
     }
-    
+
     do
     {
         if (this->_lastShownScreen->_nextScreen == NULL)
