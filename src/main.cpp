@@ -342,7 +342,7 @@ void takeReadings()
     screen3_temperature.setPriority(1);
     screen4_humidity.setValue(g_bme_humidity);
     screen4_humidity.setPriority(1);
-    screen5_pressure.setValue(g_bme_pressure);
+    screen5_pressure.setValue(g_bme_pressure/100); // Hektopascal = Pascal / 100
     screen5_pressure.setPriority(1);
     screen0_info.setPriority(0);
     bmetimer.startover();
@@ -494,7 +494,7 @@ void reportReadings()
     }
     topic = mqttTopicValue;
     topic.concat("pressure");
-    if (mqttClient.publish(topic.c_str(), String(g_bme_pressure)))
+    if (mqttClient.publish(topic.c_str(), String(g_bme_pressure/100)))
     {
       Serial.print("Pressure value published: ");
       Serial.println(g_bme_pressure);

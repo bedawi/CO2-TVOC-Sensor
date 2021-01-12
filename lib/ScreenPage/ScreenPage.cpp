@@ -39,7 +39,7 @@ ScreenPage::ScreenPage(uint16_t width, uint16_t height, unsigned char *icon) : m
   this->m_bitmap = icon;
 }
 
-void ScreenPage::setValue(uint16_t value)
+void ScreenPage::setValue(uint32_t value)
 {
   m_value = value;
 }

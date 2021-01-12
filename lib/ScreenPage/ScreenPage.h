@@ -18,7 +18,7 @@ private:
     String m_headline;
     String m_suffix;
     String m_comment;
-    uint16_t m_value;
+    uint32_t m_value;
     bool m_readingAvailable;
     uint8_t m_priority;
     uint8_t m_screenType; // 0 = ValueScreen; 1 = Infoscreen;
@@ -35,7 +35,7 @@ public:
     ScreenPage(String prefix, String suffix, String unit);
     ScreenPage(String headline, String infomessage);
     ScreenPage(uint16_t width, uint16_t height, unsigned char *icon);
-    void setValue(uint16_t value);
+    void setValue(uint32_t value);
     void setInfomessage(String infomessage);
     void setComment(String comment);
     void setPriority(uint8_t priority);
