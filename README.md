@@ -57,8 +57,10 @@ GND     -   2 (GND)
 5V      -   1 (VCC)
 ```
 
-### Heltec WiFi Kit 8 (currently not compiling!)
+### Heltec WiFi Kit 8
 Attention: Check the [WiFi Kit 8 Pinout Diagram](https://resource.heltec.cn/download/WiFi_Kit_8/WIFI_Kit_8_Pinout_Diagram.pdf) to find the correct PINs. What's written on the NodeMCU is most likely wrong!
+
+Currently this device has not been tested successfully.
 
 ```
 ESP8266 -   CCS811  -   BME/BMP280

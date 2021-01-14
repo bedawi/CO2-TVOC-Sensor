@@ -14,10 +14,15 @@
 
 #if defined(WIFI_Kit_8)
 #include "config_WIFI_Kit_8.h"
+#include <SPI.h>
+#include <FS.h>
+#include "icons/splashscreen_nn.xbm"
 #endif
 
 #if defined(WIFI_LoRa_32_V2)
 #include "config_WIFI_LoRa_32.h"
+#include <SPIFFS.h>
+#include "icons/splashscreen_128_64.xbm"
 #endif
 
 #include "SensorTimer.h"
@@ -71,9 +76,6 @@ IotWebConfTextParameter mqttTopicParam = IotWebConfTextParameter("MQTT topic", "
 // Includes for SSD1306 Display
 #include <heltec.h>
 
-// Includes for icons
-#include "icons/splashscreen.xbm"
-
 // Includes and instanciations for CCS811 Sensor
 #include "Adafruit_CCS811.h"
 Adafruit_CCS811 ccs;
@@ -99,7 +101,7 @@ uint16_t g_pms_pm25;
 uint16_t g_pms_pm10;
 
 // Includes for storing and reading files / settings
-#include <SPIFFS.h>
+//#include <SPIFFS.h>
 #include <ArduinoJson.h>
 
 // other global variables
@@ -198,16 +200,18 @@ void setup()
   iotWebConf.setWifiConnectionCallback(&wifiConnected);
 
   // Initializing storage SPIFFS object
-  if (!SPIFFS.begin(true))
+  if (!SPIFFS.begin())
   {
     Serial.println("Error initializing SPIFFS");
-    while (true)
-    {
-    }
+    Serial.println("Formatting SPIFFS and reboot");
+    SPIFFS.format();
+    delay(1000);
+    ESP.restart();
   }
-
+  Serial.println("File system setup done");
+/*
   // For debugging: Listing all files at start
-  File root = SPIFFS.open("/");
+  File root = SPIFFS.open("/", "r");
   File file = root.openNextFile();
   while (file)
   {
@@ -217,7 +221,7 @@ void setup()
   }
   root.close();
   file.close();
-
+*/
   // -- Initializing the configuration.
   Serial.println("Loading iotWebConf");
   bool validConfig = iotWebConf.init();
@@ -342,7 +346,7 @@ void takeReadings()
     screen3_temperature.setPriority(1);
     screen4_humidity.setValue(g_bme_humidity);
     screen4_humidity.setPriority(1);
-    screen5_pressure.setValue(g_bme_pressure/100); // Hektopascal = Pascal / 100
+    screen5_pressure.setValue(g_bme_pressure / 100); // Hektopascal = Pascal / 100
     screen5_pressure.setPriority(1);
     screen0_info.setPriority(0);
     bmetimer.startover();
@@ -439,7 +443,7 @@ void display()
       else
       {
         Heltec.display->setFont(ArialMT_Plain_24);
-        Heltec.display->drawString(10, line2, currentScreenPage->getLine2());
+        Heltec.display->drawString(0, line2, currentScreenPage->getLine2());
       }
       Heltec.display->setFont(ArialMT_Plain_10);
       Heltec.display->drawString(0, line3, currentScreenPage->getLine3());
@@ -494,10 +498,10 @@ void reportReadings()
     }
     topic = mqttTopicValue;
     topic.concat("pressure");
-    if (mqttClient.publish(topic.c_str(), String(g_bme_pressure/100)))
+    if (mqttClient.publish(topic.c_str(), String(g_bme_pressure / 100)))
     {
       Serial.print("Pressure value published: ");
-      Serial.println(g_bme_pressure);
+      Serial.println(g_bme_pressure / 100);
     }
     bmetimer.readingsReported();
   }
@@ -593,7 +597,7 @@ void loop()
   }
 
   // -- Sensor related
-  if (ccstimer.isTimetoWakeup())
+  if (ccstimer.isAvailable() && ccstimer.isTimetoWakeup())
   {
     ccstimer.wakeUp();
     // Waking Sensor up...
@@ -601,13 +605,13 @@ void loop()
     digitalWrite(g_CCS811_wake_pin, LOW);
   }
 
-  if (bmetimer.isTimetoWakeup())
+  if (bmetimer.isAvailable() && bmetimer.isTimetoWakeup())
   {
     Serial.println("Waking up BME280");
     bmetimer.wakeUp();
   }
 
-  if (pmstimer.isTimetoWakeup())
+  if (pmstimer.isAvailable() && pmstimer.isTimetoWakeup())
   {
     Serial.println("Waking up PMS Sensor");
     pms.wake();
@@ -737,7 +741,7 @@ void mqttMessageReceived(String &topic, String &payload)
 
 std::tuple<bool, int> ccs811LoadBaseline()
 {
-  File file = SPIFFS.open(g_filesystem_ccs811setting);
+  File file = SPIFFS.open(g_filesystem_ccs811setting, "r");
   if (file)
   {
     StaticJsonDocument<200> doc;
